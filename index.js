@@ -9,6 +9,7 @@ var io = socketio(httpServer, {
   maxHttpBufferSize: 1e7,
   pingTimeout: 30000
 });
+var intervals = [];
 var streamBuffer = [];
 io.on("connection", socket => {
   socket.on("publish", data => {
@@ -19,17 +20,33 @@ io.on("connection", socket => {
   if (socket.handshake.query.subscriber) {
     var index = 0;
     console.log("subscriber connected");
-    setInterval(function() {
+    var interval = setInterval(function() {
       this.socket = socket;
-      if (index == 0) {
-        this.socket.emit("videostream", streamBuffer);
-      } else if (index !== streamBuffer.length) {
-        this.socket.emit("videostream", streamBuffer.slice(index));
+      if (index < streamBuffer.length) {
+        let newIndex =
+          index + 50 < streamBuffer.length ? index + 50 : streamBuffer.length;
+        this.socket.emit("videostream", streamBuffer.slice(index, newIndex));
+        index = newIndex;
+        console.log("sending current chunk " + index);
       }
-      index = streamBuffer.length;
-      console.log("sending current chunk " + index);
-    }, 2000);
+    }, 500);
+    intervals.push(interval);
+    socket.on("disconnect", function() {
+      clearInterval(interval);
+    });
+  }
+  if (socket.handshake.query.publisher) {
+    socket.on("disconnect", function() {
+      socket.broadcast.emit("streamend", {});
+      streamBuffer = [];
+      console.log("Publisher disconnected");
+      intervals.map(i => {
+        clearInterval(i);
+      });
+      intervals = [];
+    });
   }
 });
 app.use(express.static(path.join(__dirname, "/public")));
 httpServer.listen(8080);
+console.log("open localhost:8080/[publish|subscribe].html");

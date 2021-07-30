@@ -1,4 +1,4 @@
-const socket = io.connect();
+const socket = io.connect("/", { query: { publisher: true } });
 const remoteVideo = document.getElementById("remote-video");
 var recordedChunks = [];
 navigator.mediaDevices
@@ -28,5 +28,5 @@ navigator.mediaDevices
     // setInterval(() => {
     //   mediaRecorder.stop();
     // }, 10000);
-    mediaRecorder.start(500);
+    mediaRecorder.start(1000);
   });
